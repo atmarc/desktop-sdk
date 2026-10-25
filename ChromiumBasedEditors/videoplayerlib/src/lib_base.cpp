@@ -1,6 +1,17 @@
 #include "../qascvideoview.h"
 #include "./lib_base.h"
 
+static void InitVideoResources()
+{
+	// videoplayerlib is static: explicitly reference the resource initializer so
+	// the linker retains its object file (including the media control icons).
+	static const bool initialized = []() {
+		Q_INIT_RESOURCE(IconsVideoPlayerLib);
+		return true;
+	}();
+	Q_UNUSED(initialized);
+}
+
 #ifdef USE_VLC_LIBRARY
 
 #ifdef _WIN32
@@ -49,6 +60,7 @@ static void CheckWindowsOld()
 
 void NSBaseVideoLibrary::Init(QObject* parent)
 {
+	InitVideoResources();
 	if (!parent)
 		return;
 
@@ -66,6 +78,7 @@ void NSBaseVideoLibrary::SetVerbosityLevel(int nVerbose)
 
 void NSBaseVideoLibrary::Init(QObject* parent)
 {
+	InitVideoResources();
 }
 
 void NSBaseVideoLibrary::SetVerbosityLevel(int nVerbose)

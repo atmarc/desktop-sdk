@@ -105,6 +105,11 @@ else()
 endif()
 
 if(BUILD_VIDEOPLAYER_TESTS AND NOT USE_LIBVLC)
+    add_executable(videoplayer_resource_test tests/resource_registration_test.cpp)
+    set_default_options(videoplayer_resource_test)
+    target_link_libraries(videoplayer_resource_test PRIVATE
+        videoplayerlib Qt${QT_VERSION_MAJOR}::MultimediaWidgets
+    )
     add_executable(videoplayer_probe_test tests/probe_lifecycle_test.cpp)
     set_default_options(videoplayer_probe_test)
     target_link_libraries(videoplayer_probe_test PRIVATE
