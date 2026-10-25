@@ -105,6 +105,8 @@ else()
 endif()
 
 if(BUILD_VIDEOPLAYER_TESTS AND NOT USE_LIBVLC)
+    add_executable(videoplayer_geometry_test tests/media_geometry_test.cpp)
+    target_link_libraries(videoplayer_geometry_test PRIVATE Qt${QT_VERSION_MAJOR}::Core)
     add_executable(videoplayer_resource_test tests/resource_registration_test.cpp)
     set_default_options(videoplayer_resource_test)
     target_link_libraries(videoplayer_resource_test PRIVATE

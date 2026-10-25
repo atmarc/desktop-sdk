@@ -4,7 +4,7 @@ Configure the existing desktop CMake build with `-DBUILD_VIDEOPLAYER_TESTS=ON`,
 then build only the native wrapper and test:
 
 ```sh
-cmake --build <build-directory> --target qtascdocumentscore videoplayer_probe_test videoplayer_resource_test
+cmake --build <build-directory> --target qtascdocumentscore videoplayer_probe_test videoplayer_resource_test videoplayer_geometry_test
 ```
 
 Run with the same Qt libraries/plugins used by the desktop application:
@@ -29,4 +29,9 @@ keeps the next probe from starting before cleanup finishes.
 
 `videoplayer_resource_test` verifies that media control icons are linked and
 registered when using the static media player library. Run it with the same
+`LD_LIBRARY_PATH`; it does not need a display or video file.
+
+`videoplayer_geometry_test` checks physical-to-logical rectangle conversion at
+100%, 125%, 150% and 200% scaling, including logical parent offsets and rounding
+of the slideshow rectangle observed in the reproduction. Run it with the same
 `LD_LIBRARY_PATH`; it does not need a display or video file.

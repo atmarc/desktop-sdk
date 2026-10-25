@@ -24,9 +24,23 @@
  */
 
 #include "./../include/qcefview_media.h"
+#include "./../include/media_geometry.h"
+#include <QGuiApplication>
 #include <QTimer>
 
 #include <algorithm>
+
+static QRect mediaWidgetRect(QWidget* widget, const QRect& rect, const QPoint& offset = QPoint())
+{
+	qreal pixelRatio = 1.0;
+#if defined(_LINUX) && QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+	// The Wayland CEF OSR surface is rendered in physical pixels. Unlike the
+	// legacy X11 embedding path, Qt then scales its child widgets itself.
+	if (QGuiApplication::platformName() == "wayland")
+		pixelRatio = widget->devicePixelRatioF();
+#endif
+	return MediaGeometry::fromNativePixels(rect, pixelRatio, offset);
+}
 
 // uncomment to watch debug info
 // #define DEBUG_MEDIA_PLAYER
@@ -98,13 +112,14 @@ void QCefView_Media::OnMediaStart(NSEditorApi::CAscExternalMedia* data)
 	m_pMediaView->setFullScreenUsed(false);
 
 	// set video view geometry
-	int nWidth = data->get_BoundsW();
-	m_pMediaView->setGeometry(data->get_BoundsX(), data->get_BoundsY(), nWidth, data->get_BoundsH());
+	QRect videoRect = mediaWidgetRect(this, QRect(data->get_BoundsX(), data->get_BoundsY(), data->get_BoundsW(), data->get_BoundsH()));
+	int nWidth = videoRect.width();
+	m_pMediaView->setGeometry(videoRect);
 	// set footer geometry
 	QFooterPanel* pFooter = m_pMediaView->Footer();
 	int nFooterWidth = std::min(std::max(nWidth, pFooter->GetMinWidth()), pFooter->GetMaxWidth());
-	int nFooterX = data->get_BoundsX() + nWidth / 2 - nFooterWidth / 2;
-	pFooter->setGeometry(nFooterX, data->get_BoundsY() + data->get_BoundsH() + 12, nFooterWidth, pFooter->GetHeight());
+	int nFooterX = videoRect.x() + nWidth / 2 - nFooterWidth / 2;
+	pFooter->setGeometry(nFooterX, videoRect.y() + videoRect.height() + 12, nFooterWidth, pFooter->GetHeight());
 	pFooter->SetRoundedCorners(true);
 	// set footer skin and show it explicitly
 	pFooter->ApplySkin(CFooterSkin::tDark);
@@ -276,10 +291,12 @@ void QCefView_Media::showMediaControl(NSEditorApi::CAscExternalMediaPlayerComman
 	m_pMediaView->setPlayListUsed(false);
 	m_pMediaView->setFullScreenUsed(false);
 
-	m_pMediaView->setGeometry(xOffset + data->get_FrameBoundsX(), yOffset + data->get_FrameBoundsY(), data->get_FrameBoundsW(), data->get_FrameBoundsH());
+	const QPoint offset(xOffset, yOffset);
+	m_pMediaView->setGeometry(mediaWidgetRect(this, QRect(data->get_FrameBoundsX(), data->get_FrameBoundsY(), data->get_FrameBoundsW(), data->get_FrameBoundsH()), offset));
 
 	QFooterPanel* pFooter = m_pMediaView->Footer();
-	pFooter->setGeometry(xOffset + data->get_ControlRectX(), yOffset + data->get_ControlRectY(), data->get_ControlRectW(), pFooter->GetHeight());
+	QRect controlRect = mediaWidgetRect(this, QRect(data->get_ControlRectX(), data->get_ControlRectY(), data->get_ControlRectW(), data->get_ControlRectH()), offset);
+	pFooter->setGeometry(controlRect.x(), controlRect.y(), controlRect.width(), pFooter->GetHeight());
 
 	// show before skin! (problem in fullscreen mode)
 	pFooter->show();
@@ -319,9 +336,11 @@ void QCefView_Media::updateGeometry(NSEditorApi::CAscExternalMediaPlayerCommand*
 
 	int xOffset = 0, yOffset = 0;
 	getMainPanel(this, xOffset, yOffset);
-	m_pMediaView->setGeometry(xOffset + data->get_FrameBoundsX(), yOffset + data->get_FrameBoundsY(), data->get_FrameBoundsW(), data->get_FrameBoundsH());
+	const QPoint offset(xOffset, yOffset);
+	m_pMediaView->setGeometry(mediaWidgetRect(this, QRect(data->get_FrameBoundsX(), data->get_FrameBoundsY(), data->get_FrameBoundsW(), data->get_FrameBoundsH()), offset));
 	QFooterPanel* pFooter = m_pMediaView->Footer();
-	pFooter->setGeometry(xOffset + data->get_ControlRectX(), yOffset + data->get_ControlRectY(), data->get_ControlRectW(), pFooter->GetHeight());
+	QRect controlRect = mediaWidgetRect(this, QRect(data->get_ControlRectX(), data->get_ControlRectY(), data->get_ControlRectW(), data->get_ControlRectH()), offset);
+	pFooter->setGeometry(controlRect.x(), controlRect.y(), controlRect.width(), pFooter->GetHeight());
 }
 
 void QCefView_Media::onMediaKeyDown(int key, Qt::KeyboardModifiers mods)
