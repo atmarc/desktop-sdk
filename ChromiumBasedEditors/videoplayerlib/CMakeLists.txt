@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(videoplayerlib LANGUAGES CXX)
 
 option(USE_LIBVLC "Build with libvlc support" OFF)
+option(BUILD_VIDEOPLAYER_TESTS "Build standalone media player regression tests" OFF)
 
 # 1. CHANGE: STATIC library. No separate DLL/SO will be generated.
 add_library(videoplayerlib STATIC)
@@ -101,4 +102,13 @@ else()
     # LibVLC Logic
     set(LIBVLC_PATH "${CORE_ROOT_DIR}/Common/3dParty/libvlc")
     # target_link_libraries(videoplayerlib PRIVATE vlc vlccore)
+endif()
+
+if(BUILD_VIDEOPLAYER_TESTS AND NOT USE_LIBVLC)
+    add_executable(videoplayer_probe_test tests/probe_lifecycle_test.cpp)
+    set_default_options(videoplayer_probe_test)
+    target_link_libraries(videoplayer_probe_test PRIVATE
+        videoplayerlib kernel UnicodeConverter graphics ascdocumentscore
+        Qt${QT_VERSION_MAJOR}::Multimedia Qt${QT_VERSION_MAJOR}::MultimediaWidgets
+    )
 endif()
