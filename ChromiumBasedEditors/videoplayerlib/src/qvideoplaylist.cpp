@@ -113,8 +113,8 @@ QVideoPlaylist::QVideoPlaylist(QWidget *parent) : QWidget(parent)
 	QObject::connect(m_pCheckPlayer, SIGNAL(mediaChanged(QMediaContent)), this, SLOT(_onSlotMediaChanged(QMediaContent)));
 	QObject::connect(m_pCheckPlayer, SIGNAL(error(QMediaPlayer::Error)), this, SLOT(_onSlotError(QMediaPlayer::Error)));
 #else
-	QObject::connect(m_pCheckPlayer, SIGNAL(sourceChanged(QMediaContent)), this, SLOT(_onSlotMediaChanged(QMediaContent)));
-	//QObject::connect(m_pCheckPlayer, SIGNAL(error(QMediaPlayer::Error)), this, SLOT(_onSlotError(QMediaPlayer::Error)));
+	QObject::connect(m_pCheckPlayer, &QMediaPlayer::sourceChanged, this, &QVideoPlaylist::_onSlotMediaChanged);
+	QObject::connect(m_pCheckPlayer, &QMediaPlayer::errorOccurred, this, &QVideoPlaylist::_onSlotError);
 #endif
 
 #endif
@@ -540,7 +540,8 @@ void QVideoPlaylist::_onSlotCheckDuration(const QString& file, const QString& du
 #ifndef USE_VLC_LIBRARY
 void QVideoPlaylist::_onSlotError(QMediaPlayer::Error error)
 {
-
+	if (error != QMediaPlayer::NoError)
+		_onSlotDurationChanged(0);
 }
 
 void QVideoPlaylist::_onSlotMediaStatusChanged(QMediaPlayer::MediaStatus status)
@@ -551,8 +552,9 @@ void QVideoPlaylist::_onSlotMediaStatusChanged(QMediaPlayer::MediaStatus status)
 
 void QVideoPlaylist::_onSlotDurationChanged(qint64 duration)
 {
-	if (m_sCheckFile.isEmpty())
+	if (m_sCheckFile.isEmpty() || m_bCheckCleanupPending)
 		return;
+	m_bCheckCleanupPending = true;
 
 	m_mapDurations[m_sCheckFile] = duration;
 
@@ -578,8 +580,20 @@ void QVideoPlaylist::_onSlotDurationChanged(qint64 duration)
 
 	emit _onCheckDuration(m_sCheckFile, sDur);
 
-	m_pCheckPlayer->stop();
-	QMediaPlayer_setMedia(m_pCheckPlayer, "");
+	// Qt can emit durationChanged while it is still initializing the playback
+	// engine. Clearing the source here destroys that engine before Qt finishes
+	// using it. Keep this probe active until cleanup runs on the next event turn.
+	const QString sCheckFile = m_sCheckFile;
+	QTimer::singleShot(0, this, [this, sCheckFile]() {
+		if (m_sCheckFile == sCheckFile)
+		{
+			// Ignore duration/error signals emitted by stop() or clearing the source.
+			m_sCheckFile.clear();
+			m_pCheckPlayer->stop();
+			QMediaPlayer_setMedia(m_pCheckPlayer, "");
+		}
+		m_bCheckCleanupPending = false;
+	});
 }
 
 void QVideoPlaylist::_onSlotMediaChanged(QMediaContent content)
@@ -629,6 +643,10 @@ void QVideoPlaylist::_onVlcMediaParseChanged(bool isparsed)
 
 void QVideoPlaylist::_onThreadFunc()
 {
+#ifndef USE_VLC_LIBRARY
+	if (m_bCheckCleanupPending)
+		return;
+#endif
 	if (!m_sCheckFile.isEmpty())
 		return;
 

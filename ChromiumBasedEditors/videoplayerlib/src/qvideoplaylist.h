@@ -142,6 +142,7 @@ private:
 
 #ifndef USE_VLC_LIBRARY
 	QMediaPlayer* m_pCheckPlayer;
+	bool m_bCheckCleanupPending = false;
 #else
 	CVlcMedia* m_pCheckMedia;
 #endif
